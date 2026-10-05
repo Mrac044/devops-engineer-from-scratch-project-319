@@ -32,12 +32,27 @@ resource "yandex_vpc_security_group" "k8s" {
   name = "k8s"
   description = "kubernetes network security group"
   folder_id = var.yc_folder_id
-  
-  ingress {
+}
 
-  }
+resource "yandex_vpc_security_group_rule" "rule1" {
+  security_group_binding = yandex_vpc_security_group.k8s.id
+  direction              = "ingress"
+  description            = "rule1 description"
+  v4_cidr_blocks         = ["10.0.1.0/24", "10.0.2.0/24"] 
+  port                   = 8080
+  protocol               = "TCP"
+}
 
-  egress {
+resource "yandex_vpc_security_group_rule" "rule2" {
+  security_group_binding = yandex_vpc_security_group.k8s.id
+  direction              = "egress"
+  description            = "rule2 description"
+  v4_cidr_blocks         = ["10.0.1.0/24"]
+  from_port              = 8090
+  to_port                = 8099
+  protocol               = "UDP"
+}
 
-  }
+resource "yandex_vpc_network" "lab-net" {
+  name = "lab-network"
 }
