@@ -1,0 +1,98 @@
+# Main vars
+
+application_server_ipv4: 158.160.224.83
+monitoring_server_ipv4: 84.201.147.72
+private_ip_monitoring: "10.130.0.18"
+private_ip_application: "10.130.0.22"
+monitoring_docker_subnet: "172.30.0.0/16"
+
+# Service ports
+
+prometheus_port: 9090
+actuator_port: 9090
+node_port: 9100
+nginx_exporter_port: 9113
+promtail_port: 9080
+grafana_port: 3000
+loki_port: 3100
+
+
+# Application vars
+
+auth_basic_user: monitoring
+
+# Prometheus vars
+
+scrape_interval: 15s
+evaluation_interval: 30s
+scrape_timeout: 14s
+
+prometheus_conf_path: "/etc/prometheus/prometheus.yml"
+prometheus_rules_path: "/etc/prometheus/rules"
+prometheus_data_path: "/var/lib/bulletin_board_prometheus"
+prometheus_password_path: "/etc/prometheus/monitoring_password.txt"
+
+prometheus_scrape_jobs:
+  - name: prometheus-self
+    targets:
+      - "localhost:9090"
+  - name: app-prometheus
+    metrics_path: /actuator/prometheus
+    basic_auth: true
+    targets:
+      - "{{ private_ip_application }}:{{ actuator_port }}"
+  - name: nodes
+    targets:
+      - "{{ private_ip_application }}:{{ node_port }}"
+      - "host.docker.internal:{{ node_port }}"
+
+  - name: nginx-prometheus
+    metrics_path: /metrics
+    targets:
+      - "{{ private_ip_application }}:{{ nginx_exporter_port }}"
+
+# Grafana vars
+
+grafana_data_path: "/var/lib/bulletin_board_grafana"
+grafana_provisioning_file_path: "/etc/grafana/provisioning/datasources/prometheus.yml"
+
+grafana_datasources:
+  - name: Prometheus
+    type: prometheus
+    url: "http://bulletin-board-prometheus:9090"
+    is_default: true
+    editable: false
+
+  - name: Loki
+    type: loki
+    url: "http://bulletin-board-loki:{{ loki_port }}"
+    is_default: false
+    editable: false
+
+# Promtail vars
+
+promtail_data_path: "/var/lib/promtail/positions.yaml"
+promtail_scrape_jobs:
+  - name: docker
+    job: docker
+    env: production
+    app: bulletin-board
+    host: "{{ application_server_ipv4 }}"
+    docker_sd: true
+
+  - name: nginx
+    job: nginx
+    env: production
+    app: nginx
+    host: "{{ application_server_ipv4 }}"
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          __path__: /var/log/nginx/*.log
+
+# Loki vars
+
+
+loki_config_path: "/etc/loki/loki.yml"
+loki_data_path: "/var/lib/loki"

@@ -1,0 +1,8 @@
+- hosts: webservers  
+
+  tasks:
+
+    - name: Fast rollback app to a scepific version
+      import_role: 
+        name: deploy
+      become: yes

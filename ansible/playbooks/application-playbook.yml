@@ -1,0 +1,73 @@
+- hosts: webservers  
+
+  tasks:
+
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: yes
+      become: yes
+
+    - name: Install docker and configure docker user
+      import_role: 
+        name: geerlingguy.docker
+      become: yes
+
+    - name: Set allow ports for firewall
+      community.general.ufw:
+        rule: allow
+        port: "{{ item }}"
+        proto: tcp
+      become: yes
+      loop:
+        - 22
+        - 80
+        - 443
+
+    - name: Allow observability ports to monitoring servers
+      community.general.ufw:
+        rule: allow
+        port: "{{ item }}"
+        proto: tcp
+        from_ip: "{{ private_ip_monitoring }}"
+      become: yes
+      loop:
+        - 9090  # prometheus
+        - 9100  # node_exporter
+        - 9113  # nginx_prometheus_exporter
+
+    - name: Set default incoming policy firewall
+      community.general.ufw:
+        direction: incoming
+        policy: deny
+      become: yes
+
+    - name: Set default outgoing policy firewall
+      community.general.ufw:
+        direction: outgoing
+        policy: allow
+      become: yes
+
+    - name: Enable firewall
+      community.general.ufw:
+        state: enabled
+      become: yes
+
+    - name: Deploy and run app on server
+      import_role: 
+        name: deploy
+      become: yes
+
+    - name: Install observability node_exporter
+      import_role: 
+        name: "node_exporter"
+      become: yes
+
+    - name: Install observability nginx_exporter
+      import_role: 
+        name: "nginx_exporter"
+      become: yes
+
+    - name: Install observability promtail
+      import_role: 
+        name: "promtail"
+      become: yes

@@ -1,0 +1,5 @@
+---
+# defaults file for loki
+
+loki_config_source_path: "{{ playbook_dir }}/../services/loki/loki.yml.j2"
+monitoring_docker_net: "monitoring"

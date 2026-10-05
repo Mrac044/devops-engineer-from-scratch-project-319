@@ -1,0 +1,239 @@
+- hosts: monitoring  
+
+  vars:
+    prometheus_conf_source_path: "{{ playbook_dir }}/../services/prometheus/prometheus.yml.j2"
+    prometheus_rules_source_path: "{{ playbook_dir }}/../services/prometheus/rules"
+    grafana_provisioning_source_path: "{{ playbook_dir }}/../services/grafana/grafana_provisioning.yml.j2"
+
+  handlers:
+    - name: Restart prometheus container
+      community.docker.docker_container:
+        name: "bulletin-board-prometheus"
+        state: started
+        restart: yes
+
+    - name: Restart grafana container
+      community.docker.docker_container:
+        name: "bulletin-board-grafana"
+        state: started
+        restart: yes
+
+  tasks:
+
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: yes
+      become: yes
+
+    - name: Install docker and configure docker user
+      import_role: 
+        name: geerlingguy.docker
+      become: yes
+
+    - name: Allow ssh port
+      community.general.ufw:
+        rule: allow
+        port: 22
+        proto: tcp
+      become: yes
+
+    - name: Allow grafana port
+      community.general.ufw:
+        rule: allow
+        port: "{{ grafana_port }}"
+        proto: tcp
+      become: yes
+
+    - name: Allow promtail port
+      community.general.ufw:
+        rule: allow
+        port: "{{ promtail_port }}"
+        proto: tcp
+        from_ip: "{{ private_ip_application }}"
+      become: yes
+
+    - name: Allow loki port
+      community.general.ufw:
+        rule: allow
+        port: "{{ loki_port }}"
+        from_ip: "{{ private_ip_application }}"
+        proto: tcp
+      become: yes
+
+    - name: Allow prometheus port to app server
+      community.general.ufw:
+        rule: allow
+        port: "{{ prometheus_port }}"
+        proto: tcp
+        from_ip: "{{ private_ip_application }}"
+      become: yes
+
+    - name: Allow node_exporter ports
+      community.general.ufw:
+        rule: allow
+        port: "{{ node_port }}"
+        proto: tcp
+        from_ip: "{{ monitoring_docker_subnet }}"
+      become: yes
+
+    - name: Set default incoming policy firewall
+      community.general.ufw:
+        direction: incoming
+        policy: deny
+      become: yes
+
+    - name: Set default outgoing policy firewall
+      community.general.ufw:
+        direction: outgoing
+        policy: allow
+      become: yes
+
+    - name: Enable firewall
+      community.general.ufw:
+        state: enabled
+      become: yes
+
+    - name: Create docker network
+      community.docker.docker_network:
+        name: "monitoring"
+        ipam_config:
+          - subnet: "{{ monitoring_docker_subnet }}"
+
+    - name: Install observability node_exporter
+      import_role: 
+        name: "node_exporter"
+      become: yes
+
+    - name: Install observability loki
+      import_role: 
+        name: "loki"
+      become: yes
+
+    - name: Create prometheus configuration directory
+      ansible.builtin.file:
+        owner: root
+        group: root
+        path: "/etc/prometheus"
+        state: directory
+        mode: "0755"
+      become: yes
+
+    - name: Create prometheus rules directory
+      ansible.builtin.file:
+        owner: root
+        group: root
+        path: "{{ prometheus_rules_path }}"
+        state: directory
+        mode: "0755"
+      become: yes
+
+    - name: Create prometheus data directory
+      ansible.builtin.file:
+        owner: "65534"
+        group: "65534"
+        path: "{{ prometheus_data_path }}"
+        state: directory
+        mode: "0750"
+      become: yes
+
+    - name: Create grafana data directory
+      ansible.builtin.file:
+        owner: "472"
+        group: "472"
+        path: "{{ grafana_data_path }}"
+        state: directory
+        mode: "0750"
+      become: yes
+
+    - name: Create grafana provisioning directory
+      ansible.builtin.file:
+        owner: root
+        group: root
+        path: "{{ grafana_provisioning_file_path | dirname }}"
+        state: directory
+        mode: "0755"
+      become: yes
+
+    - name: Update prometheus configuration
+      ansible.builtin.template:
+        src: "{{ prometheus_conf_source_path }}"
+        dest: "{{ prometheus_conf_path }}"
+        mode: "0644"
+        owner: root
+        group: root
+      become: yes
+      notify:
+        - Restart prometheus container
+
+    - name: Install prometheus alert rules
+      ansible.builtin.copy:
+        src: "{{ prometheus_rules_source_path }}/"
+        dest: "{{ prometheus_rules_path }}/"
+        mode: "0644"
+        owner: root
+        group: root
+      become: yes
+      notify:
+        - Restart prometheus container
+
+    - name: Create actuator prometheus password file
+      ansible.builtin.copy:
+        content: "{{ metrics_password }}\n"
+        dest: "{{ prometheus_password_path }}"
+        owner: "65534"
+        group: "65534"
+        mode: "0400"
+      no_log: yes
+      become: yes
+
+    - name: Start docker container prometheus
+      community.docker.docker_container:
+        name: "bulletin-board-prometheus"
+        image: "prom/prometheus:latest"
+        state: started
+        restart_policy: always
+        networks: 
+          - name: "monitoring"
+        published_ports: ["127.0.0.1:9090:9090"]
+        etc_hosts:
+          host.docker.internal: host-gateway
+        volumes:
+          - "{{ prometheus_conf_path }}:/etc/prometheus/prometheus.yml:ro"
+          - "{{ prometheus_password_path }}:{{ prometheus_password_path }}:ro"
+          - "{{ prometheus_rules_path }}:{{ prometheus_rules_path }}:ro"
+          - "{{ prometheus_data_path }}:/prometheus:rw"
+
+    - name: Install grafana provisioning
+      ansible.builtin.template:
+        src: "{{ grafana_provisioning_source_path }}"
+        dest: "{{ grafana_provisioning_file_path }}"
+        mode: "0644"
+        owner: root
+        group: root
+      become: yes
+      notify:
+        - Restart grafana container
+
+    - name: Start docker container grafana
+      community.docker.docker_container:
+        name: "bulletin-board-grafana"
+        image: "grafana/grafana:latest"
+        state: started
+        restart_policy: always
+        networks:
+          - name: "monitoring"
+        published_ports: ["3000:3000"]
+        volumes:
+          - "{{ grafana_data_path }}:/var/lib/grafana:rw"
+          - "{{ grafana_provisioning_file_path }}:/etc/grafana/provisioning/datasources/prometheus.yml:ro"
+        env:
+          GF_SECURITY_ADMIN_PASSWORD: "{{ grafana_admin_password }}"
+          GF_SMTP_ENABLED: "true"
+          GF_SMTP_HOST: "smtp.mail.ru:465"
+          GF_SMTP_USER: "{{ admin_email }}"
+          GF_SMTP_PASSWORD: "{{ smtp_password }}"
+          GF_SMTP_FROM_ADDRESS: "{{ admin_email }}"
+          GF_SMTP_FROM_NAME: "Grafana"
+          GF_SMTP_STARTTLS_POLICY: "MandatoryStartTLS"
+      no_log: yes
+

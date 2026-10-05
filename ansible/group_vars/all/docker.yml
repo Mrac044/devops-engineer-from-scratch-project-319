@@ -1,0 +1,5 @@
+docker_users: ["{{ ansible_user }}"]
+docker_install_compose: yes
+docker_edition: "ce"
+docker_apt_release_channel: stable
+application_docker_network: "bulletin-net"

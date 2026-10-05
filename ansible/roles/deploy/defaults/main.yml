@@ -1,0 +1,14 @@
+---
+# defaults file for deploy
+
+image_name: "mrac04/bulletin-board"
+app_version: latest
+app_log_dir: "/var/log/bulletin-board"
+s3_endpoint: "https://storage.yandexcloud.net"
+frontend_dir: "/var/www"
+nginx_file_source_path: "{{ playbook_dir }}/../services/nginx/nginx.conf.j2"
+nginx_conf_path: "/etc/nginx/bulletin-board.conf"
+
+metrics_auth_user: monitoring
+htpasswd_path: "/etc/nginx/.htpasswd"
+app_logs_nginx_directory_path: "/var/log/bulletin-board/nginx"

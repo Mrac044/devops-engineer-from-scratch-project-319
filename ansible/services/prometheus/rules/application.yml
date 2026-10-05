@@ -1,0 +1,24 @@
+groups:
+  - name: application
+    rules:
+      - alert: ApplicationHttp5xxRateHigh
+        expr: |
+          100 * (
+            sum(rate(http_server_requests_seconds_count{job="app-prometheus", status=~"5.."}[5m]))
+            /
+            sum(rate(http_server_requests_seconds_count{job="app-prometheus"}[5m]))
+          ) > 10
+        for: 5m
+        labels:
+          severity: FATAL
+        annotations:
+          summary: "High HTTP 5xx rate in the application"
+          description: "More than 10% of application HTTP requests returned 5xx for five minutes."
+
+      - alert: ApplicationEmptyMetrics
+        expr: absent_over_time(up{job="app-prometheus"}[5m])
+        labels:
+          severity: WARNING
+        annotations:
+          summary: "Application metrics are missing"
+          description: "Prometheus has received no application metrics for more than five minutes."

@@ -1,0 +1,66 @@
+server:
+  http_listen_port: {{ promtail_port }}
+  grpc_listen_port: 0
+
+positions:
+  filename: {{ promtail_data_path }}
+
+clients:
+  - url: http://{{ private_ip_monitoring }}:3100/loki/api/v1/push
+    batchwait: 1s
+    batchsize: 102400
+
+scrape_configs:
+{% for scrape_job in promtail_scrape_jobs %}
+  - job_name: "{{ scrape_job.name }}"
+
+{% if scrape_job.docker_sd | default(false) %}
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+
+    relabel_configs:
+      - source_labels:
+          - __meta_docker_container_name
+        regex: "/(.*)"
+        target_label: container
+
+      - source_labels:
+          - __meta_docker_container_label_com_docker_compose_service
+        target_label: compose_service
+
+      - source_labels:
+          - __meta_docker_container_id
+        target_label: __path__
+        replacement: /var/lib/docker/containers/$1/$1-json.log
+
+      - target_label: job
+        replacement: "{{ scrape_job.job }}"
+
+      - target_label: env
+        replacement: "{{ scrape_job.env }}"
+
+      - target_label: app
+        replacement: "{{ scrape_job.app }}"
+
+      - target_label: host
+        replacement: "{{ scrape_job.host }}"
+
+    pipeline_stages:
+      - docker: {}
+
+{% elif scrape_job.static_configs is defined %}
+    static_configs:
+{% for config in scrape_job.static_configs %}
+      - targets:
+{% for target in config.targets %}
+          - "{{ target }}"
+{% endfor %}
+        labels:
+{% for key, value in config.labels.items() %}
+          {{ key }}: "{{ value }}"
+{% endfor %}
+{% endfor %}
+
+{% endif %}
+{% endfor %}

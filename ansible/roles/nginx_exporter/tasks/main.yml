@@ -1,0 +1,63 @@
+---
+# tasks file for nginx_exporter
+
+- name: Set node_exporter user
+  ansible.builtin.user:
+    name: "nginx_exporter"
+    system: yes
+    shell: /bin/false
+    create_home: no
+  become: yes
+
+- name: Download nginx_exporter
+  ansible.builtin.get_url:
+    url: "https://github.com/nginxinc/nginx-prometheus-exporter/releases/download/v1.3.0/nginx-prometheus-exporter_1.3.0_linux_amd64.tar.gz"
+    dest: "/tmp"
+
+- name: Unarchive nginx_exporter
+  ansible.builtin.unarchive:
+    src: "/tmp/nginx-prometheus-exporter_1.3.0_linux_amd64.tar.gz"
+    dest: "/tmp"
+    remote_src: yes
+    creates: "/tmp/nginx-prometheus-exporter"
+
+- name: Set file properties for nginx_exporter
+  ansible.builtin.copy:
+    src: "/tmp/nginx-prometheus-exporter"
+    dest: "/usr/local/bin/nginx-prometheus-exporter"
+    remote_src: yes
+    owner: nginx_exporter
+    group: nginx_exporter
+    mode: "0755"
+  
+- name: Create system unit
+  ansible.builtin.copy:
+    content: |
+      [Unit]
+      Description=Nginx Prometheus Exporter
+      After=network.target
+
+      [Service]
+      User=nginx_exporter
+      Group=nginx_exporter
+      Type=simple
+      ExecStart=/usr/local/bin/nginx-prometheus-exporter \
+        -nginx.scrape-uri http://127.0.0.1:80/stub_status \
+        -web.listen-address :9113
+      Restart=on-failure
+      RestartSec=10
+
+      [Install]
+      WantedBy=multi-user.target
+    dest: "/etc/systemd/system/nginx_exporter.service"
+    owner: root
+    group: root
+    mode: "0644"
+  become: yes
+
+- name: Systemd nginx_exporter service enable
+  ansible.builtin.systemd:
+    name: "nginx_exporter"
+    daemon_reload: yes
+    enabled: yes
+    state: started

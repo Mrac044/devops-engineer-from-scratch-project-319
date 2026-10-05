@@ -1,0 +1,5 @@
+---
+# defaults file for node_exporter
+
+metrics_node_exporter_port: 9100
+metrics_app_port: 9090

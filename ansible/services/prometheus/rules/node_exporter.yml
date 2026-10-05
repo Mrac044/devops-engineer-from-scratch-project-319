@@ -1,0 +1,74 @@
+groups:
+  - name: node-exporter
+    rules:
+      - alert: NodeExporterDown
+        expr: up{job="nodes"} == 0
+        for: 2m
+        labels:
+          severity: FATAL
+        annotations:
+          summary: "Node Exporter is down on {{ $labels.instance }}"
+          description: "Prometheus cannot scrape Node Exporter on {{ $labels.instance }} for more than two minutes."
+
+      - alert: NodeCpuUsageHigh
+        expr: 100 - (avg by (instance) (rate(node_cpu_seconds_total{job="nodes", mode="idle"}[5m])) * 100) > 85
+        for: 10m
+        labels:
+          severity: WARNING
+        annotations:
+          summary: "High CPU usage on {{ $labels.instance }}"
+          description: "CPU usage is above 85% for more than ten minutes."
+
+      - alert: NodeFilesystemUsageHigh
+        expr: 100 * (1 - node_filesystem_avail_bytes{job="nodes", fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{job="nodes", fstype!~"tmpfs|overlay"}) > 85
+        for: 10m
+        labels:
+          severity: WARNING
+        annotations:
+          summary: "High filesystem usage on {{ $labels.instance }}"
+          description: "Filesystem {{ $labels.mountpoint }} is above 85% full."
+
+      - alert: NodeMemoryUsageHigh
+        expr: 100 * (1 - node_memory_MemAvailable_bytes{job="nodes"} / node_memory_MemTotal_bytes{job="nodes"}) > 85
+        for: 10m
+        labels:
+          severity: WARNING
+        annotations:
+          summary: "High memory usage on {{ $labels.instance }}"
+          description: "Memory usage is above 85% for more than ten minutes."
+
+      - alert: NodeDiskReadIopsHigh
+        expr: sum by (instance, device) (rate(node_disk_reads_completed_total{job="nodes", device!~"dm-.*|loop.*"}[5m])) > 500
+        for: 10m
+        labels:
+          severity: WARNING
+        annotations:
+          summary: "High disk read IOPS on {{ $labels.instance }}"
+          description: "Disk {{ $labels.device }} is above 500 read IOPS."
+
+      - alert: NodeDiskWriteIopsHigh
+        expr: sum by (instance, device) (rate(node_disk_writes_completed_total{job="nodes", device!~"dm-.*|loop.*"}[5m])) > 500
+        for: 10m
+        labels:
+          severity: WARNING
+        annotations:
+          summary: "High disk write IOPS on {{ $labels.instance }}"
+          description: "Disk {{ $labels.device }} is above 500 write IOPS."
+
+      - alert: NodeNetworkReceiveTrafficHigh
+        expr: sum by (instance) (rate(node_network_receive_bytes_total{job="nodes", device!~"lo|docker.*|veth.*"}[5m])) * 8 > 800000000
+        for: 10m
+        labels:
+          severity: WARNING
+        annotations:
+          summary: "High inbound network traffic on {{ $labels.instance }}"
+          description: "Inbound traffic is above 800 Mbps."
+
+      - alert: NodeNetworkTransmitTrafficHigh
+        expr: sum by (instance) (rate(node_network_transmit_bytes_total{job="nodes", device!~"lo|docker.*|veth.*"}[5m])) * 8 > 800000000
+        for: 10m
+        labels:
+          severity: WARNING
+        annotations:
+          summary: "High outbound network traffic on {{ $labels.instance }}"
+          description: "Outbound traffic is above 800 Mbps."

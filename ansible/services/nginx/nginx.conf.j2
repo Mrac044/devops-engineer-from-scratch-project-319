@@ -1,0 +1,104 @@
+log_format json_combined escape=json '{
+"timestamp": "$time_iso8601",
+"remote_addr": "$remote_addr",
+"request_method": "$request_method",
+"request_uri": "$request_uri",
+"status": "$status",
+"body_bytes_sent": "$body_bytes_sent",
+"request_time": "$request_time",
+"http_user_agent": "$http_user_agent",
+"http_x_forwarded_for": "$http_x_forwarded_for",
+"http_referer": "$http_referer",
+"upstream_addr": "$upstream_addr",
+"upstream_status": "$upstream_status",
+"upstream_response_time": "$upstream_response_time"
+}';
+
+server {
+    listen 80;
+    server_name _;
+
+    root /app/public;
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    location /api {
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_pass http://bulletin-board-app:8080;
+    }
+
+    location = /stub_status {
+        stub_status;
+        allow 127.0.0.1;
+        allow {{ monitoring_server_ipv4 }};
+        allow 172.18.0.1;
+        deny all;
+    }
+}
+
+server {
+    listen {{ actuator_port }};
+    server_name _;
+
+    access_log /var/log/nginx/metrics_access.log json_combined;
+    error_log /var/log/nginx/metrics_error.log;
+
+    location = /actuator/health {
+
+        proxy_pass http://bulletin-board-app:{{ actuator_port }};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+    }
+
+    location = /actuator/health/liveness {
+
+        proxy_pass http://bulletin-board-app:{{ actuator_port }};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 3s;
+        proxy_read_timeout 3s;
+
+    }
+
+    location = /actuator/health/readiness {
+
+        proxy_pass http://bulletin-board-app:{{ actuator_port }};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 3s;
+        proxy_read_timeout 3s;
+
+    }
+
+    location = /actuator/prometheus {
+
+        proxy_pass http://bulletin-board-app:{{ actuator_port }};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 10s;
+        proxy_read_timeout 10s;
+        auth_basic "Metrics Access";
+        auth_basic_user_file /etc/nginx/.htpasswd;
+
+    }
+
+    location ^~ /actuator/ {
+      return 404;
+    }
+
+}

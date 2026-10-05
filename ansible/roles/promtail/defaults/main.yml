@@ -1,0 +1,6 @@
+---
+# defaults file for promtail
+
+promtail_conf_source_path: "{{ playbook_dir }}/../services/promtail/promtail-config.yml.j2"
+promtail_conf_path: "/etc/promtail/promtail-config.yml"
+promtail_docker_network: "bulletin-net"

@@ -1,0 +1,47 @@
+---
+# tasks file for promtail
+
+- name: Create promtail config directory
+  ansible.builtin.file:
+    owner: root
+    group: root
+    path: "/etc/promtail/"
+    state: directory
+    mode: "0755"
+  become: yes
+
+- name: Create promtail data directory
+  ansible.builtin.file:
+    path: "{{ promtail_data_path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  become: yes
+
+- name: Update promtail configuration
+  ansible.builtin.template:
+    src: "{{ promtail_conf_source_path }}"
+    dest: "{{ promtail_conf_path }}"
+    mode: "0644"
+    owner: root
+    group: root
+  become: yes
+  notify:
+    - Restart promtail container
+
+- name: Start docker container promtail
+  community.docker.docker_container:
+    name: "bulletin-board-promtail"
+    image: "grafana/promtail:latest"
+    state: started
+    restart_policy: always
+    command:
+      - "-config.file=/etc/promtail/promtail-config.yml"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "/var/lib/docker/containers:/var/lib/docker/containers:ro"
+      - "{{ promtail_conf_path }}:/etc/promtail/promtail-config.yml:ro"
+      - "{{ promtail_data_path }}:/var/lib/promtail"
+      - "{{ app_logs_nginx_directory_path }}:/var/log/nginx:ro"
+  become: yes

@@ -1,0 +1,8 @@
+---
+# handlers file for promtail
+
+- name: Restart promtail container
+  community.docker.docker_container:
+    name: "bulletin-board-promtail"
+    state: started
+    restart: yes

@@ -1,0 +1,48 @@
+---
+# tasks file for loki
+
+- name: Create Loki config directory
+  ansible.builtin.file:
+    path: "{{ loki_config_path | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  become: yes
+
+- name: Create Loki data directory
+  ansible.builtin.file:
+    path: "{{ loki_data_path }}"
+    state: directory
+    owner: "10001"
+    group: "10001"
+    mode: "0755"
+  become: yes
+
+- name: Update Loki configuration
+  ansible.builtin.template:
+    src: "{{ loki_config_source_path }}"
+    dest: "{{ loki_config_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+  become: yes
+  notify:
+    - Restart Loki container
+
+- name: Start Loki container
+  community.docker.docker_container:
+    name: "bulletin-board-loki"
+    image: "grafana/loki:latest"
+    state: started
+    restart_policy: always
+    networks:
+      - name: "monitoring"
+    published_ports:
+      - "{{ loki_port }}:{{ loki_port }}"
+    volumes:
+      - "{{ loki_config_path }}:/etc/loki/loki.yml:ro"
+      - "{{ loki_data_path }}:/loki"
+    command:
+      - "-config.file=/etc/loki/loki.yml"
+  become: yes

@@ -1,0 +1,7 @@
+---
+# handlers file for deploy
+- name: Restart nginx container
+  community.docker.docker_container:
+    name: "bulletin-board-nginx"
+    state: started
+    restart: yes
