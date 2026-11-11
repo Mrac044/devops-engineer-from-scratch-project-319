@@ -13,7 +13,6 @@
 
 ## Установка
 
-<!-- Опишите установку: клонирование, зависимости, переменные окружения -->
 - Инициализация бекенда terraform. acces_key/secret_key должны быть описаны в `secret.backend.tfvars`:
 `terraform init -backend-config=secret.backend.tfvars`
 
@@ -23,9 +22,8 @@ git clone https://github.com/Mrac044/devops-engineer-from-scratch-project-319.gi
 cd devops-engineer-from-scratch-project-319
 ```
 
-## Использование
+## Необходимые инструменты
 
-<!-- Добавьте примеры запуска и запись asciinema — именно это смотрит работодатель -->
 Для создания инфраструктуры необходимы:
 
 - Terraform >= 1.11
@@ -40,9 +38,24 @@ Terraform-код находится в директории `terraform/`.
 ### Настройка Yandex Cloud
 
 Необходимо выполнить аутентификацию в Yandex Cloud CLI:
+`yc init`
 
-```bash
-yc init
+### Применение terraform
+
+Применение конфигураций terraform:
+`make terraform-apply`
+
+Очистить инфраструктуру:
+`make terraform-destroy`
+
+> В среднем на процессы уходит n минут
+
+### Применение kubernetes
+
+Применить манифесты:
+`make deploy`
+
+> Команда генерирует `.env` файл через terraform outputs и подставляет их значения в configmap и secret
 
 ---
 
@@ -56,5 +69,3 @@ yc init
 ## О Хекслете
 
 [Хекслет](https://ru.hexlet.io/) — школа программирования: авторские программы обучения с практикой, поддержкой наставников и реальными проектами, которые остаются в резюме. Этот репозиторий — один из таких проектов.
-
-##
