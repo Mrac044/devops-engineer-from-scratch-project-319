@@ -171,6 +171,7 @@ module "yandex_postgresql" {
   source = "github.com/terraform-yc-modules/terraform-yc-postgresql?ref=1.0.2"
 
   network_id = yandex_vpc_network.k8s.id
+  security_groups_ids_list = [yandex_vpc_security_group.mdb.id]
 
   name        = "bulletin-board-postgresql"
   description = "PostgreSQL cluster for bulletin board application"
@@ -273,11 +274,4 @@ resource "yandex_kubernetes_node_group" "workers" {
 
 resource "yandex_storage_bucket" "app" {
   bucket = "bulletin-board-s3"
-}
-
-# Lockbox
-
-resource "yandex_lockbox_secret" "app" {
-  name        = "bulletin_board_app"
-  description = "Secrets for bulletin board application"
 }
