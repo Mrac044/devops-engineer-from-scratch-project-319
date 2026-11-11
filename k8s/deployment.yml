@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: bulletin-board
+  name: bulletin-board-deployment
   namespace: bulletin-board
 spec:
   replicas: 1
