@@ -7,6 +7,7 @@ build/
 ansible/vault_pass.txt
 ansible/playbooks/vault_pass.txt
 ansible/group_vars/all/vault.yml
+.env
 
 ### STS ###
 .apt_generated
@@ -60,3 +61,7 @@ terraform/*.tfvars.json
 terraform/secret.*
 terraform/authorized_key.json
 terraform/*.backup
+
+### Kubernetes ###
+k8s/secret*
+k8s/templates/secret*
