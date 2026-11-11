@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: bulletin-board
+  namespace: bulletin-board
+spec:
+  type: ClusterIP
+
+  selector:
+    app: bulletin-board
+
+  ports:
+    - name: http
+      port: 80
+      targetPort: nginx-http
+      protocol: TCP

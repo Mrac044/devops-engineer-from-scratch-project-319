@@ -1,0 +1,100 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bulletin-board
+  namespace: bulletin-board
+spec:
+  replicas: 1
+
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
+  selector:
+    matchLabels:
+      app: bulletin-board
+
+  template:
+    metadata:
+      labels:
+        app: bulletin-board
+
+    spec:
+      containers:
+        - name: app
+          image: mrac04/bulletin-board:latest
+          imagePullPolicy: Always
+
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: management
+              containerPort: 9090
+
+          envFrom:
+            - configMapRef:
+                name: bulletin-board-config
+            - secretRef:
+                name: bulletin-board-secret
+
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: management
+            initialDelaySeconds: 30
+            periodSeconds: 10
+
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: management
+            initialDelaySeconds: 60
+            periodSeconds: 20
+
+        - name: nginx
+          image: nginx:stable
+          ports:
+            - name: nginx-http
+              containerPort: 80
+
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/conf.d/default.conf
+              subPath: default.conf
+
+          readinessProbe:
+            httpGet:
+              path: /nginx-health
+              port: nginx-http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+
+          livenessProbe:
+            httpGet:
+              path: /nginx-health
+              port: nginx-http
+            initialDelaySeconds: 10
+            periodSeconds: 20
+
+      volumes:
+        - name: nginx-config
+          configMap:
+            name: nginx-config
