@@ -1,8 +1,0 @@
----
-# handlers file for loki
-
-- name: Restart Loki container
-  community.docker.docker_container:
-    name: "bulletin-board-loki"
-    state: started
-    restart: yes
